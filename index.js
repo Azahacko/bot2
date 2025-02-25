@@ -1,89 +1,103 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const fs = require('fs');
-const qrcode = require('qrcode-terminal');
-
-const client = new Client({
-    authStrategy: new LocalAuth(),
-    puppeteer: { headless: true }
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
 });
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const baileys_1 = __importStar(require("@whiskeysockets/baileys"));
+const logger_1 = __importDefault(require("@whiskeysockets/baileys/lib/Utils/logger"));
+const logger = logger_1.default.child({});
+logger.level = 'silent';
+const pino = require("pino");
+const boom_1 = require("@hapi/boom");
+const conf = require("./set");
+const axios = require("axios");
+let fs = require("fs-extra");
+let path = require("path");
+const FileType = require('file-type');
+const { Sticker, createSticker, StickerTypes } = require('wa-sticker-formatter');
+//import chalk from 'chalk'
+const { verifierEtatJid, recupererActionJid } = require("./bdd/antilien");
+const { atbverifierEtatJid, atbrecupererActionJid } = require("./bdd/antibot");
+let evt = require(__dirname + "/framework/aza-md"); // Remplacement  aza-md
+const { isUserBanned, addUserToBanList, removeUserFromBanList } = require("./bdd/banUser");
+const { addGroupToBanList, isGroupBanned, removeGroupFromBanList } = require("./bdd/banGroup");
+const { isGroupOnlyAdmin, addGroupToOnlyAdminList, removeGroupFromOnlyAdminList } = require("./bdd/onlyAdmin");
+//const { constrainedMemory } = require("process");
+//const { co } = require("translatte/languages");
+const { recupevents } = require('./bdd/welcome');
+//const //{loadCmd}=require("/framework/mesfonctions")
+let { reagir } = require(__dirname + "/framework/app");
+var session = conf.session.replace(/HACKING-MD;;;=>/g, "");
+const prefixe = conf.PREFIXE;
 
-// Chargement des règles
-let rules = [];
-try {
-    const data = fs.readFileSync('rules.json', 'utf8');
-    rules = JSON.parse(data).rules;
-} catch (error) {
-    console.error("⚠️ Erreur lors du chargement des règles :", error);
+async function authentification() {
+    try {
+        //console.log("le data " + data)
+        if (!fs.existsSync(__dirname + "/auth/creds.json")) {
+            console.log("connexion en cour ...");
+            await fs.writeFileSync(__dirname + "/auth/creds.json", atob(session), "utf8");
+            //console.log(session)
+        } else if (fs.existsSync(__dirname + "/auth/creds.json") && session != "zokk") {
+            await fs.writeFileSync(__dirname + "/auth/creds.json", atob(session), "utf8");
+        }
+    } catch (e) {
+        console.log("Session Invalide " + e);
+        return;
+    }
 }
 
-// ID du groupe
-const groupId = "120363282443673237@g.us"; // Ton ID de groupe
+authentification();
 
-client.on('qr', (qr) => {
-    console.log("📌 Scan ce QR Code avec WhatsApp Web :");
-    qrcode.generate(qr, { small: true });
+const store = (0, baileys_1.makeInMemoryStore)({
+    logger: pino().child({ level: "silent", stream: "store" }),
 });
 
-client.on('ready', async () => {
-    console.log('✅ Bot connecté avec succès !');
-
-    try {
-        const group = await client.getChatById(groupId);
-        console.log(`🔹 Surveillance activée pour le groupe : ${group.name}`);
-
-        // Récupérer la liste des membres du groupe
-        const participants = await group.participants;
-        
-        // Saluer chaque membre du groupe
-        participants.forEach(participant => {
-            group.sendMessage(`Salut @${participant.id.user}, bienvenue dans le groupe !`);
-        });
-    } catch (err) {
-        console.error("❌ Erreur : Impossible de récupérer le groupe. Vérifie l'ID !");
+setTimeout(() => {
+    async function main() {
+        const { version, isLatest } = await (0, baileys_1.fetchLatestBaileysVersion)();
+        const { state, saveCreds } = await (0, baileys_1.useMultiFileAuthState)(__dirname + "/auth");
+        const sockOptions = {
+            version,
+            logger: pino({ level: "silent" }),
+            browser: ['aza-Md', "safari", "1.0.0"],
+            printQRInTerminal: true,
+            fireInitQueries: false,
+            shouldSyncHistoryMessage: true,
+            downloadHistory: true,
+            syncFullHistory: true,
+            generateHighQualityLinkPreview: true,
+            markOnlineOnConnect: false,
+            keepAliveIntervalMs: 30_000,
+            /* auth: state*/ auth: {
+                creds: state.creds,
+                /** caching makes the store faster to send/recv messages */
+                keys: (0, baileys_1.makeCacheableSignalKeyStore)(state.keys, logger),
+            },
+        };
+        // Ajoute ici le code pour établir la connexion fait ça bro
     }
-});
-
-client.on('message', async (message) => {
-    // Vérifier si le message vient du groupe spécifié
-    if (message.from === groupId) {
-        console.log(`📩 Message reçu dans le groupe ${message.from} de ${message.author || message.from} : ${message.body}`);
-
-        // Vérification si le message est une commande admin (ex: !add-rule mot_interdit)
-        if (message.body.startsWith('!add-rule ')) {
-            const newRule = message.body.replace('!add-rule ', '').trim();
-            if (newRule) {
-                rules.push(newRule);
-                fs.writeFileSync('rules.json', JSON.stringify({ rules }, null, 2));
-                message.reply(`✅ Nouvelle règle ajoutée : ${newRule}`);
-                console.log(`📜 Nouvelle règle ajoutée : ${newRule}`);
-            }
-            return;
-        }
-
-        // Vérifier si le message contient une règle interdite
-        const violatedRule = rules.find(rule => message.body.toLowerCase().includes(rule.toLowerCase()));
-
-        if (violatedRule) {
-            console.log(`🚨 Règle violée : ${violatedRule}`);
-
-            try {
-                const group = await client.getChatById(groupId);
-                const participants = await group.participants;
-
-                // Vérifier si l'expéditeur est un admin
-                const sender = participants.find(p => p.id._serialized === message.author);
-                if (sender && sender.isAdmin) {
-                    console.log("⚠️ Un admin a enfreint une règle, mais il ne sera pas banni.");
-                    return;
-                }
-
-                await group.removeParticipants([message.author]);
-                console.log(`❌ ${message.author} a été banni pour non-respect des règles.`);
-            } catch (err) {
-                console.error("⚠️ Erreur lors de la suppression du membre :", err);
-            }
-        }
-    }
-});
-
-client.initialize();
+    main();
+}, 1000);
