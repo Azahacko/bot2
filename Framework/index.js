@@ -1,4 +1,4 @@
-const nomCmds = 'other-command';
+const nomCmds = 'comand';
 const desc = 'Description de la commande autre.';
 const alias = ['!autre-commande'];
 
